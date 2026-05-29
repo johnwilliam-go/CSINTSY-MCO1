@@ -17,19 +17,9 @@ public class SokoBot {
       ex.printStackTrace();
     }
 
-    up();
-    down();
-    left();
     right();
-    up();
-    down();
-    left();
     right();
-    up();
-    down();
-    left();
     right();
-
 
     return output;
   }
