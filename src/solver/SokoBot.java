@@ -203,27 +203,57 @@ public class SokoBot {
         for (int i = 0; i < gameState.length; i++) {
             for (int j = 0; j < gameState[0].length; j++) {
                 if (gameState[i][j] == '@') {
-                    int nextI = i + y;
-                    int nextJ = j + x;
-                    int nextNextI = i + 2 * y;
-                    int nextNextJ = j + 2 * x;
+                    // INPUT YOUR CODE HERE
 
-                    if (nextI < 0 || nextI >= gameState.length || nextJ < 0 || nextJ >= gameState[0].length) {
+                    int nextVertical = i + y;    // if y = negative, it checks the left     if y = positive, it checks the right
+                    int nextHorizontal = j + x;  // if x = negative, it checks the top      if x = positive,  it checks the bottom
+                    int doubleNextVertical = i + 2 * y;   // checks 2 units to the left or right
+                    int doubleNextHorizontal = j + 2 * x; // checks 2 units up and down
+                    // you can initalize more variables
+                    // example deadlock situation,
+                    // #  #
+                    // #@$ #
+                    // #
+                    // if player moves one time to the right, a move is allowed, but the box will be stuck there forever
+                    // soo we make initialize another variable
+                    //
+                    // HINT:
+                    // int tripleNextHorizontal = j + 3 * x  (this will check 3 units to the right or left)  (you are probably gonna use this)
+
+                    // if you find deadlock, simply make do " canMove = false; "
+
+
+                    //this prevents you from exiting the map cuz it will cause an array out of bounds index error type shit
+                    if (nextVertical < 0 || nextVertical >= gameState.length || nextHorizontal < 0 || nextHorizontal >= gameState[0].length) {
                         canMove = false;
                         return;
                     }
 
-                    if (gameState[nextI][nextJ] == '#') {
+                    // checking if ur next move is a wall
+                    if (gameState[nextVertical][nextHorizontal] == '#') {
                         canMove = false;
-                    } else if (gameState[nextI][nextJ] == '$' || gameState[nextI][nextJ] == '/') {
-                        // check bounds for cell beyond box
-                        if (nextNextI < 0 || nextNextI >= gameState.length || nextNextJ < 0 || nextNextJ >= gameState[0].length) {
+
+                    // checking if ur next move is facing a box
+                    // '$' for box not in the goal
+                    // '/' for box in the goal
+                    } else if (gameState[nextVertical][nextHorizontal] == '$' || gameState[nextVertical][nextHorizontal] == '/') {
+
+                        // if you are actually facing a box....
+
+                        // checks if the player and the box are next to a wall
+                        // @$#
+                        if (doubleNextVertical < 0 || doubleNextVertical >= gameState.length || doubleNextHorizontal < 0 || doubleNextHorizontal >= gameState[0].length) {
                             canMove = false;
                             return;
                         }
-                        if (gameState[nextNextI][nextNextJ] == '$' || gameState[nextNextI][nextNextJ] == '/'
-                                || gameState[nextNextI][nextNextJ] == '#') {
+                        // checks player if the box is also next to a box
+                        // @$$
+                        if (gameState[doubleNextVertical][doubleNextHorizontal] == '$' || gameState[doubleNextVertical][doubleNextHorizontal] == '/'
+                                || gameState[doubleNextVertical][doubleNextHorizontal] == '#') {
                             canMove = false;
+
+                        // if not, the state must be like this: @$ #
+                        // this means a move is possible
                         } else {
                             boxCanBeMoved = true;
                         }
@@ -234,6 +264,7 @@ public class SokoBot {
     }
 
     public void deadlockDetection(){
-        // implement your code here
+        // implement your code here (if you want to create a method instead)
+        // if not its fine you can add stuff in the checkNextState
     }
 }
