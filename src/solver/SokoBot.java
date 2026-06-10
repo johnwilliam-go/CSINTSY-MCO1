@@ -1,4 +1,5 @@
 package solver;
+import java.util.ArrayList;
 import java.util.Random;
 
 public class SokoBot {
@@ -9,6 +10,11 @@ public class SokoBot {
     private boolean canMove = true;
     private boolean boxCanBeMoved = false;
 
+    ArrayList<int[]> crates = new ArrayList<>();
+    ArrayList<int[]> goals = new ArrayList<>();
+    ArrayList<Object> lowestHeuristic = new ArrayList<>();
+
+    ArrayList<Object[]> heuristics = new ArrayList<>();
     public String solveSokobanPuzzle(int width, int height, char[][] mapData, char[][] itemsData) {
         gameState = new char[height][width];
         this.mapData = mapData;
@@ -29,7 +35,6 @@ public class SokoBot {
 
     initializeGameState();
 
-    showPlayerCoordinate();
 
     Runnable[] moves = {
             () -> up(),
@@ -40,9 +45,10 @@ public class SokoBot {
 
     // THIS IS TEMPORARY SOLUTION
     // THIS IS TO TEST THE DEADLOCK
-    printItems();
+
+    displayGameState();
     Random rand = new Random();
-    while (output.length() < 100) {
+    while (output.length() < 20) {
         int num = rand.nextInt(4);
         moves[num].run();
     }
@@ -50,24 +56,64 @@ public class SokoBot {
   }
 
   public void showPlayerCoordinate(){
-      for(int i = 0; i < mapData.length; i++) {
-          for(int j = 0; j < mapData[0].length; j++) {
+      crates.clear();
+      goals.clear();
+      heuristics.clear();
+      lowestHeuristic.clear();
+      for(int i = 0; i < itemsData.length; i++) {
+          for(int j = 0; j < itemsData[0].length; j++) {
+              if(itemsData[i][j] == '$' ) {
+                  crates.add(new int[]{j, i});
+              }
               if(mapData[i][j] == '.') {
-                  System.out.print("Goal: (" + j + "," + i + ")\n");
+                  goals.add(new int[]{j, i});
               }
           }
       }
 
-      for(int i = 0; i < itemsData.length; i++) {
-          for(int j = 0; j < itemsData[0].length; j++) {
-              if(itemsData[i][j] == '@' ) {
-                  System.out.print("Player: (" + j + "," + i + ")\n");
-              }
-              if(itemsData[i][j] == '$' ) {
-                  System.out.print("Crates: (" + j + "," + i + ")\n");
+      for (int i = 0; i < crates.size(); i++) {
+          int[] crate = crates.get(i);
+
+          // System.out.println("Heuristics for crate (" +  crate[0] + "," + crate[1] + ") based on nearest goal"); // remove comment for debugging
+
+          for(int j = 0; j < goals.size(); j++) {
+              int[] goal = goals.get(j);
+              int heuristicValue = Math.abs(crate[0] - goal[0]) + Math.abs(crate[1] - goal[1]);
+              String selectedCrate = "(" + crate[0] + "," + crate[1] + ")";
+              String selectedGoal = "(" + goal[0] + "," + goal[1] + ")";
+              heuristics.add(new Object[]{
+                      selectedCrate,
+                      selectedGoal,
+                      heuristicValue
+              });
+
+              // System.out.println(selectedGoal + "-" + heuristicValue); // remove comment for debugging
+
+          }
+
+          Object[] lowestHeuristicValueOfEachGoal = heuristics.getFirst();
+
+          for (Object[] heuristic : heuristics) {
+              int value = (Integer) heuristic[2];
+              if (value < (Integer) lowestHeuristicValueOfEachGoal[2]) {
+                  lowestHeuristicValueOfEachGoal = heuristic;
               }
           }
+          lowestHeuristic.add(lowestHeuristicValueOfEachGoal);
+
+          heuristics.clear(); // clear the temporary arraylist to check another crate's lowest heuristic to the goal
       }
+
+      System.out.println("\n");
+      System.out.println("Crate - Goal - Heuristic Value");
+      int totalHeuristicValue = 0;
+
+      for (Object o : lowestHeuristic) {
+          Object[] object = (Object[]) o;
+          System.out.println(object[0] + " - " + object[1] + " - " + object[2]);
+          totalHeuristicValue += (Integer) object[2];
+      }
+      System.out.println("Total Heuristic : " + totalHeuristicValue);
   }
 
     public void up(){
@@ -197,6 +243,10 @@ public class SokoBot {
             }
         }
         displayGameState();
+        System.out.println(input);
+        showPlayerCoordinate();
+        System.out.println("---------------------------------------------");
+        System.out.println("\n");
     }
 
     public void checkNextState(int x, int y) {
