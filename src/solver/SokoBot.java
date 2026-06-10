@@ -48,7 +48,7 @@ public class SokoBot {
 
     displayGameState();
     Random rand = new Random();
-    while (output.length() < 20) {
+    while (output.length() < 500) {
         int num = rand.nextInt(4);
         moves[num].run();
     }
@@ -62,7 +62,7 @@ public class SokoBot {
       lowestHeuristic.clear();
       for(int i = 0; i < itemsData.length; i++) {
           for(int j = 0; j < itemsData[0].length; j++) {
-              if(itemsData[i][j] == '$' ) {
+              if(gameState[i][j] == '$' || gameState[i][j] == '/') {
                   crates.add(new int[]{j, i});
               }
               if(mapData[i][j] == '.') {
