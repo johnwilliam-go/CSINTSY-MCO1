@@ -1,20 +1,20 @@
 package solver;
 import java.util.ArrayList;
+import java.util.Objects;
 import java.util.Random;
 
 public class SokoBot {
     String output = "";
     private char[][] mapData;
     private char[][] itemsData;
-    private char gameState[][];
+    private char[][] gameState;
     private boolean canMove = true;
     private boolean boxCanBeMoved = false;
+    private int playerRow, playerCol;
+    private int moves = 0;
 
-    ArrayList<int[]> crates = new ArrayList<>();
-    ArrayList<int[]> goals = new ArrayList<>();
-    ArrayList<Object> lowestHeuristic = new ArrayList<>();
+    private ArrayList<Object[]> states = new ArrayList<>();
 
-    ArrayList<Object[]> heuristics = new ArrayList<>();
     public String solveSokobanPuzzle(int width, int height, char[][] mapData, char[][] itemsData) {
         gameState = new char[height][width];
         this.mapData = mapData;
@@ -55,66 +55,54 @@ public class SokoBot {
     return output;
   }
 
-  public void showPlayerCoordinate(){
-      crates.clear();
-      goals.clear();
-      heuristics.clear();
-      lowestHeuristic.clear();
-      for(int i = 0; i < itemsData.length; i++) {
-          for(int j = 0; j < itemsData[0].length; j++) {
-              if(itemsData[i][j] == '$' ) {
-                  crates.add(new int[]{j, i});
-              }
-              if(mapData[i][j] == '.') {
-                  goals.add(new int[]{j, i});
-              }
-          }
-      }
+    public ArrayList<int[]> findCrates(char[][] state) {
+        ArrayList<int[]> result = new ArrayList<>();
+        for (int i = 0; i < state.length; i++) {
+            for (int j = 0; j < state[0].length; j++) {
+                if (state[i][j] == '$' || state[i][j] == '/') {
+                    result.add(new int[]{j, i});
+                }
+            }
+        }
+        return result;
+    }
 
-      for (int i = 0; i < crates.size(); i++) {
-          int[] crate = crates.get(i);
+    public ArrayList<int[]> findGoals() {
+        ArrayList<int[]> result = new ArrayList<>();
+        for (int i = 0; i < mapData.length; i++) {
+            for (int j = 0; j < mapData[0].length; j++) {
+                if (mapData[i][j] == '.') {
+                    result.add(new int[]{j, i});
+                }
+            }
+        }
+        return result;
+    }
 
-          // System.out.println("Heuristics for crate (" +  crate[0] + "," + crate[1] + ") based on nearest goal"); // remove comment for debugging
+    public int computeHeuristic(char[][] state) {
+        ArrayList<int[]> crates = findCrates(state);
+        ArrayList<int[]> goals = findGoals();
 
-          for(int j = 0; j < goals.size(); j++) {
-              int[] goal = goals.get(j);
-              int heuristicValue = Math.abs(crate[0] - goal[0]) + Math.abs(crate[1] - goal[1]);
-              String selectedCrate = "(" + crate[0] + "," + crate[1] + ")";
-              String selectedGoal = "(" + goal[0] + "," + goal[1] + ")";
-              heuristics.add(new Object[]{
-                      selectedCrate,
-                      selectedGoal,
-                      heuristicValue
-              });
+        int totalHeuristicValue = 0;
 
-              // System.out.println(selectedGoal + "-" + heuristicValue); // remove comment for debugging
+        for (int i = 0; i < crates.size(); i++) {
+            int[] crate = crates.get(i);
+            int lowestHeuristicValue = Integer.MAX_VALUE;
 
-          }
+            for (int j = 0; j < goals.size(); j++) {
+                int[] goal = goals.get(j);
+                int heuristicValue = Math.abs(crate[0] - goal[0]) + Math.abs(crate[1] - goal[1]);
 
-          Object[] lowestHeuristicValueOfEachGoal = heuristics.getFirst();
+                if (heuristicValue < lowestHeuristicValue) {
+                    lowestHeuristicValue = heuristicValue;
+                }
+            }
 
-          for (Object[] heuristic : heuristics) {
-              int value = (Integer) heuristic[2];
-              if (value < (Integer) lowestHeuristicValueOfEachGoal[2]) {
-                  lowestHeuristicValueOfEachGoal = heuristic;
-              }
-          }
-          lowestHeuristic.add(lowestHeuristicValueOfEachGoal);
+            totalHeuristicValue += lowestHeuristicValue;
+        }
 
-          heuristics.clear(); // clear the temporary arraylist to check another crate's lowest heuristic to the goal
-      }
-
-      System.out.println("\n");
-      System.out.println("Crate - Goal - Heuristic Value");
-      int totalHeuristicValue = 0;
-
-      for (Object o : lowestHeuristic) {
-          Object[] object = (Object[]) o;
-          System.out.println(object[0] + " - " + object[1] + " - " + object[2]);
-          totalHeuristicValue += (Integer) object[2];
-      }
-      System.out.println("Total Heuristic : " + totalHeuristicValue);
-  }
+        return totalHeuristicValue;
+    }
 
     public void up(){
         output += "u";
@@ -136,21 +124,6 @@ public class SokoBot {
         updateGameState("r");
     }
 
-    public void printItems(){
-        for(int i = 0; i < mapData.length; i++) {
-            for(int j = 0; j < mapData[0].length; j++) {
-                System.out.print(mapData[i][j]);
-            }
-            System.out.println();
-        }
-        for(int i = 0; i < itemsData.length; i++) {
-            for(int j = 0; j < itemsData[0].length; j++) {
-                System.out.print(itemsData[i][j]);
-            }
-            System.out.println();
-        }
-    }
-
     public void initializeGameState(){
         for(int i = 0; i < mapData.length; i++) {
             for(int j = 0; j < mapData[0].length; j++) {
@@ -161,6 +134,9 @@ public class SokoBot {
             for(int j = 0; j < itemsData[0].length; j++) {
                 if (itemsData[i][j] == '@') {
                     gameState[i][j] = '@';
+                    playerRow = i;
+                    playerCol = j;
+
                 }
                 if (itemsData[i][j] == '$') {
                     gameState[i][j] = '$';
@@ -169,17 +145,11 @@ public class SokoBot {
         }
     }
 
-    public void relocateEntity(int x, int y, char object) {
-        for (int i = 0; i < gameState.length; i++) {
-            for (int j = 0; j < gameState[0].length; j++) {
-                if (gameState[i][j] == object || (object == '$' && gameState[i][j] == '/')) {
-                    gameState[i][j] = mapData[i][j]; // restore underlying tile
-                    gameState[i + y][j + x] = object;
-                    return;
-                }
-            }
-        }
+    public void relocateEntity(int objRow, int objCol, int dx, int dy, char object) {
+        gameState[objRow][objCol] = mapData[objRow][objCol]; // restore underlying tile
+        gameState[objRow + dy][objCol + dx] = object;
     }
+
 
 
 
@@ -204,52 +174,45 @@ public class SokoBot {
         }
     }
 
-    public void updateGameState(String input){
-        canMove = true;
-        boxCanBeMoved = false;
 
+    public void move (int dx, int dy){
+        checkNextState(dx, dy);
+        if (canMove) {
+            if (boxCanBeMoved) relocateEntity(playerRow + dy, playerCol + dx, dx, dy, '$');
+            relocateEntity(playerRow, playerCol, dx, dy, '@');
+            updateBoxDisplay();
+            playerRow += dy;
+            playerCol += dx;
+            moves++;
+        }
+
+
+    }
+
+    public void updateGameState(String input){
+        int f = moves + computeHeuristic(gameState);
         switch (input) {
-            case "u" -> {
-                checkNextState(0, -1);
-                if (canMove) {
-                    if (boxCanBeMoved) relocateEntity(0, -1, '$');
-                    relocateEntity(0, -1, '@');
-                    updateBoxDisplay();
-                }
-            }
-            case "d" -> {
-                checkNextState(0, 1);
-                if (canMove) {
-                    if (boxCanBeMoved) relocateEntity(0, 1, '$');
-                    relocateEntity(0, 1, '@');
-                    updateBoxDisplay();
-                }
-            }
-            case "r" -> {
-                checkNextState(1, 0);
-                if (canMove) {
-                    if (boxCanBeMoved) relocateEntity(1, 0, '$');
-                    relocateEntity(1, 0, '@');
-                    updateBoxDisplay();
-                }
-            }
-            case "l" -> {
-                checkNextState(-1, 0);
-                if (canMove) {
-                    if (boxCanBeMoved) relocateEntity(-1, 0, '$');
-                    relocateEntity(-1, 0, '@');
-                    updateBoxDisplay();
-                }
-            }
+            case "u" -> move(0, -1);
+            case "d" -> move(0, 1);
+            case "r" -> move(1, 0);
+            case "l" -> move(-1, 0);
         }
         displayGameState();
-        System.out.println(input);
-        showPlayerCoordinate();
+
+        states.add(new Object[]{gameState, f});
+        System.out.println("player's move: " + input + " | g: " + moves + " | h: " + computeHeuristic(gameState) + " | " + "f:" + f);
+
         System.out.println("---------------------------------------------");
         System.out.println("\n");
+
+        if(isSolved()) {
+            System.out.println("Solved!");
+        }
     }
 
     public void checkNextState(int x, int y) {
+        canMove = true; // reset these
+        boxCanBeMoved = false;
         for (int i = 0; i < gameState.length; i++) {
             for (int j = 0; j < gameState[0].length; j++) {
                 if (gameState[i][j] == '@') {
@@ -316,5 +279,18 @@ public class SokoBot {
     public void deadlockDetection(){
         // implement your code here (if you want to create a method instead)
         // if not its fine you can add stuff in the checkNextState
+    }
+
+    public boolean isSolved() {
+        for(int i = 0; i < mapData.length; i++) {
+            for(int j = 0; j < mapData[0].length; j++) {
+                if(mapData[i][j] == '.') {
+                    if(gameState[i][j] != '$') {
+                        return false;
+                    }
+                }
+            }
+        }
+        return true;
     }
 }
