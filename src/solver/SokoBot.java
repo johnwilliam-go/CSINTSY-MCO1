@@ -177,16 +177,31 @@ public class SokoBot {
 
     public void move (int dx, int dy){
         checkNextState(dx, dy);
+
         if (canMove) {
-            if (boxCanBeMoved) relocateEntity(playerRow + dy, playerCol + dx, dx, dy, '$');
+            if (boxCanBeMoved) {
+                int newBoxRow = playerRow + 2 * dy;
+                int newBoxCol = playerCol + 2 * dx;
+
+                if (isCornerDeadlock(newBoxRow, newBoxCol)) {
+                    canMove = false;
+                    return;
+                }
+
+                if (isWallDeadlock(newBoxRow, newBoxCol)) {
+                    canMove = false;
+                    return;
+                }
+
+                relocateEntity(playerRow + dy, playerCol + dx, dx, dy, '$');
+            }
+
             relocateEntity(playerRow, playerCol, dx, dy, '@');
             updateBoxDisplay();
             playerRow += dy;
             playerCol += dx;
             moves++;
         }
-
-
     }
 
     public void updateGameState(String input){
@@ -275,10 +290,110 @@ public class SokoBot {
             }
         }
     }
+    public boolean isWallTile(int row, int col) {
 
-    public void deadlockDetection(){
+        if (row < 0 || row >= gameState.length ||
+                col < 0 || col >= gameState[0].length) {
+            return true;
+        }
+
+        return gameState[row][col] == '#';
+    }
+
+    public boolean isCornerDeadlock(int boxRow, int boxCol) {
+        if (mapData[boxRow][boxCol] == '.') {
+            return false;
+        }
+
+        boolean topBlocked = isWallTile(boxRow - 1, boxCol);
+        boolean bottomBlocked = isWallTile(boxRow + 1, boxCol);
+
+        boolean leftBlocked = isWallTile(boxRow, boxCol - 1);
+        boolean rightBlocked = isWallTile(boxRow, boxCol + 1);
+
+        return (topBlocked && leftBlocked) ||
+                (topBlocked && rightBlocked) ||
+                (bottomBlocked && leftBlocked) ||
+                (bottomBlocked && rightBlocked);
+    }
+
+    public boolean rowHasGoalTile(int row) {
+
+        // Check if this row contains at least one goal tile
+        for (int col = 0; col < mapData[0].length; col++) {
+            if (mapData[row][col] == '.') {
+                return true;
+            }
+        }
+
+        return false;
+    }
+    public boolean columnHasGoalTile(int col) {
+
+        // Check if this column contains at least one goal tile
+        for (int row = 0; row < mapData.length; row++) {
+            if (mapData[row][col] == '.') {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+
+    public boolean isWallDeadlock(int boxRow, int boxCol) {
+
+        if (mapData[boxRow][boxCol] == '.') {
+            return false;
+        }
+
+        boolean topBlocked = isWallTile(boxRow - 1, boxCol);
+        boolean bottomBlocked = isWallTile(boxRow + 1, boxCol);
+
+        boolean leftBlocked = isWallTile(boxRow, boxCol - 1);
+        boolean rightBlocked = isWallTile(boxRow, boxCol + 1);
+
+        // Check if the box is touching a wall
+        boolean boxIsAgainstHorizontalWall = topBlocked || bottomBlocked;
+        boolean boxIsAgainstVerticalWall = leftBlocked || rightBlocked;
+
+        boolean rowHasGoal = rowHasGoalTile(boxRow);
+        boolean columnHasGoal = columnHasGoalTile(boxCol);
+
+        // Box is stuck along a horizontal wall with no goal in the row
+        if (boxIsAgainstHorizontalWall && !rowHasGoal) {
+            return true;
+        }
+
+        // Box is stuck along a vertical wall with no goal in the column
+        if (boxIsAgainstVerticalWall && !columnHasGoal) {
+            return true;
+        }
+
+        return false;
+    }
+
+    public boolean deadlockDetection(){
         // implement your code here (if you want to create a method instead)
         // if not its fine you can add stuff in the checkNextState
+        for (int row = 0; row < gameState.length; row++) {
+
+            for (int col = 0; col < gameState[0].length; col++) {
+
+                if (gameState[row][col] == '$') {
+
+                    if (isCornerDeadlock(row, col)) {
+                        return true;
+                    }
+
+                    if (isWallDeadlock(row, col)) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
     }
 
     public boolean isSolved() {
