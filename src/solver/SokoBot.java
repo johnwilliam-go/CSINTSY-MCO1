@@ -40,22 +40,15 @@ public class SokoBot {
 
         visitedBoards.add(copyState(gameState));
         visitedPlayers.add(new int[]{playerRow, playerCol});
-
-
-
-        int[] dx = {0, 0, -1, 1};
-        int[] dy = {-1, 1, 0, 0};
+        //           up   down  left  right
+        int[] dx = {  0  ,  0,   -1,    1};
+        int[] dy = { -1  ,  1,    0,    0};
         char[] direction = {'u', 'd', 'l', 'r'};
 
-        // implement the bfs here
-
-
-
+        // implement bfs here
 
         return "";
     }
-
-
 
     public boolean checkIfBoardsAreEqual(char[][] a, char[][] b) {
         for (int i = 0; i < a.length; i++) {
@@ -68,7 +61,7 @@ public class SokoBot {
         return true;
     }
 
-    public boolean isVisited(char[][] nextBoard, int[] nextPlayerPosition) {
+    public boolean isVisitedByPlayer(char[][] nextBoard, int[] nextPlayerPosition) {
         for (int i = 0; i < visitedBoards.size(); i++) {
             int[] player = visitedPlayers.get(i); // check if player visited that coordinate
             if(
@@ -80,44 +73,6 @@ public class SokoBot {
             }
         }
         return false;
-    }
-
-    public void initializeGameState(){
-        for(int i = 0; i < mapData.length; i++) {
-            for(int j = 0; j < mapData[0].length; j++) {
-                gameState[i][j] = mapData[i][j];
-            }
-        }
-        for(int i = 0; i < itemsData.length; i++) {
-            for(int j = 0; j < itemsData[0].length; j++) {
-                if (itemsData[i][j] == '@') {
-                    gameState[i][j] = '@';
-                    playerRow = i;
-                    playerCol = j;
-
-                }
-                if (itemsData[i][j] == '$') {
-                    gameState[i][j] = '$';
-                }
-            }
-        }
-    }
-
-    public void relocateEntity(int objRow, int objCol, int dx, int dy, char object) {
-        gameState[objRow][objCol] = mapData[objRow][objCol]; // restore underlying tile
-        gameState[objRow + dy][objCol + dx] = object;
-    }
-
-    public void updateBoxDisplay() {
-        for (int i = 0; i < gameState.length; i++) {
-            for (int j = 0; j < gameState[0].length; j++) {
-                if (gameState[i][j] == '$' && mapData[i][j] == '.') {
-                    gameState[i][j] = '/';
-                } else if (gameState[i][j] == '/' && mapData[i][j] != '.') {
-                    gameState[i][j] = '$';
-                }
-            }
-        }
     }
 
     public void move (int dx, int dy){
@@ -132,7 +87,6 @@ public class SokoBot {
                     canMove = false;
                     return;
                 }
-
 
 //                if (isWallDeadlock(newBoxRow, newBoxCol)) {
 //                    canMove = false;
@@ -150,7 +104,6 @@ public class SokoBot {
         }
     }
 
-    // just in case
     public char[][] copyState(char[][] state) {
         char[][] copy = new char[state.length][state[0].length];
         for (int i = 0; i < state.length; i++) {
@@ -175,9 +128,52 @@ public class SokoBot {
     }
 
 
+    ///  ONLY USE THE FUNCTIONS ABOVE!!! (for the most part)///
+
+    ///  some helper functions
+    public void updateBoxDisplay() {
+        for (int i = 0; i < gameState.length; i++) {
+            for (int j = 0; j < gameState[0].length; j++) {
+                if (gameState[i][j] == '$' && mapData[i][j] == '.') {
+                    gameState[i][j] = '/';
+                } else if (gameState[i][j] == '/' && mapData[i][j] != '.') {
+                    gameState[i][j] = '$';
+                }
+            }
+        }
+    }
+
+    public void relocateEntity(int objRow, int objCol, int dx, int dy, char object) {
+        gameState[objRow][objCol] = mapData[objRow][objCol]; // restore underlying tile
+        gameState[objRow + dy][objCol + dx] = object;
+    }
+
+    public void initializeGameState(){
+        for(int i = 0; i < mapData.length; i++) {
+            for(int j = 0; j < mapData[0].length; j++) {
+                gameState[i][j] = mapData[i][j];
+            }
+        }
+        for(int i = 0; i < itemsData.length; i++) {
+            for(int j = 0; j < itemsData[0].length; j++) {
+                if (itemsData[i][j] == '@') {
+                    gameState[i][j] = '@';
+                    playerRow = i;
+                    playerCol = j;
+
+                }
+                if (itemsData[i][j] == '$') {
+                    gameState[i][j] = '$';
+                }
+            }
+        }
+    }
+
+
 
 
     ///  this section is the deadlock detection or to check if a move is valid
+
 
 
 
