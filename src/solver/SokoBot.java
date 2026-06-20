@@ -1,7 +1,5 @@
 package solver;
 import java.util.ArrayList;
-import java.util.Objects;
-import java.util.Random;
 
 public class SokoBot {
     String output = "";
@@ -13,115 +11,75 @@ public class SokoBot {
     private int playerRow, playerCol;
     private int moves = 0;
 
-    private ArrayList<Object[]> states = new ArrayList<>();
+
+    private ArrayList<char[][]> board = new ArrayList<>();
+    private ArrayList<int[]> playerLocaton = new ArrayList<>();
+
+    private ArrayList<String> paths = new ArrayList<>();
+
+    private ArrayList<char[][]> visitedBoards = new ArrayList<>();
+    private ArrayList<int[]> visitedPlayers = new ArrayList<>();
 
     public String solveSokobanPuzzle(int width, int height, char[][] mapData, char[][] itemsData) {
         gameState = new char[height][width];
         this.mapData = mapData;
         this.itemsData = itemsData;
-      /*
-     * YOU NEED TO REWRITE THE IMPLEMENTATION OF THIS METHOD TO MAKE THE BOT SMARTER
-     */
-    /*
-     * Default stupid behavior: Think (sleep) for 3 seconds, and then return a
-     * sequence
-     * that just moves left and right repeatedly.
-     */
-    try {
-      Thread.sleep(200);
-    } catch (Exception ex) {
-      ex.printStackTrace();
+        /*
+         * YOU NEED TO REWRITE THE IMPLEMENTATION OF THIS METHOD TO MAKE THE BOT SMARTER
+         */
+        /*
+         * Default stupid behavior: Think (sleep) for 3 seconds, and then return a
+         * sequence
+         * that just moves left and right repeatedly.
+         */
+        initializeGameState();
+
+        board.add(copyState(gameState));
+        playerLocaton.add(new int[]{playerRow, playerCol});
+        paths.add("");
+
+        visitedBoards.add(copyState(gameState));
+        visitedPlayers.add(new int[]{playerRow, playerCol});
+
+
+
+        int[] dx = {0, 0, -1, 1};
+        int[] dy = {-1, 1, 0, 0};
+        char[] direction = {'u', 'd', 'l', 'r'};
+
+        // implement the bfs here
+
+
+
+
+        return "";
     }
 
-    initializeGameState();
 
 
-    Runnable[] moves = {
-            () -> up(),
-            () -> down(),
-            () -> left(),
-            () -> right()
-    };
-
-    // THIS IS TEMPORARY SOLUTION
-    // THIS IS TO TEST THE DEADLOCK
-
-    displayGameState();
-    Random rand = new Random();
-    while (output.length() < 20) {
-        int num = rand.nextInt(4);
-        moves[num].run();
-    }
-    return output;
-  }
-
-    public ArrayList<int[]> findCrates(char[][] state) {
-        ArrayList<int[]> result = new ArrayList<>();
-        for (int i = 0; i < state.length; i++) {
-            for (int j = 0; j < state[0].length; j++) {
-                if (state[i][j] == '$' || state[i][j] == '/') {
-                    result.add(new int[]{j, i});
+    public boolean checkIfBoardsAreEqual(char[][] a, char[][] b) {
+        for (int i = 0; i < a.length; i++) {
+            for (int j = 0; j < a[0].length; j++) {
+                if (a[i][j] != b[i][j]) { //check if the next board is the same as the previously stored board
+                    return false;
                 }
             }
         }
-        return result;
+        return true;
     }
 
-    public ArrayList<int[]> findGoals() {
-        ArrayList<int[]> result = new ArrayList<>();
-        for (int i = 0; i < mapData.length; i++) {
-            for (int j = 0; j < mapData[0].length; j++) {
-                if (mapData[i][j] == '.') {
-                    result.add(new int[]{j, i});
-                }
+    public boolean isVisited(char[][] nextBoard, int[] nextPlayerPosition) {
+        for (int i = 0; i < visitedBoards.size(); i++) {
+            int[] player = visitedPlayers.get(i); // check if player visited that coordinate
+            if(
+                    player[0] == nextPlayerPosition[0] &&
+                    player[1] == nextPlayerPosition[1] &&
+                    checkIfBoardsAreEqual(visitedBoards.get(i), nextBoard)
+            ){
+                return true;
             }
         }
-        return result;
-    }
-
-    public int computeHeuristic(char[][] state) {
-        ArrayList<int[]> crates = findCrates(state);
-        ArrayList<int[]> goals = findGoals();
-
-        int totalHeuristicValue = 0;
-
-        for (int i = 0; i < crates.size(); i++) {
-            int[] crate = crates.get(i);
-            int lowestHeuristicValue = Integer.MAX_VALUE;
-
-            for (int j = 0; j < goals.size(); j++) {
-                int[] goal = goals.get(j);
-                int heuristicValue = Math.abs(crate[0] - goal[0]) + Math.abs(crate[1] - goal[1]);
-
-                if (heuristicValue < lowestHeuristicValue) {
-                    lowestHeuristicValue = heuristicValue;
-                }
-            }
-
-            totalHeuristicValue += lowestHeuristicValue;
-        }
-
-        return totalHeuristicValue;
-    }
-
-    public void up(){
-        output += "u";
-        updateGameState("u");
-    }
-
-    public void down(){
-        output += "d";
-        updateGameState("d");
-    }
-
-    public void left(){
-        output += "l";
-        updateGameState("l");
-    }
-
-    public void right(){
-        output += "r";
-        updateGameState("r");
+        return false;
     }
 
     public void initializeGameState(){
@@ -150,18 +108,6 @@ public class SokoBot {
         gameState[objRow + dy][objCol + dx] = object;
     }
 
-
-
-
-    public void displayGameState(){
-        for(int i = 0; i < itemsData.length; i++) {
-            for(int j = 0; j < itemsData[0].length; j++) {
-                System.out.print(gameState[i][j]);
-            }
-            System.out.println();
-        }
-    }
-
     public void updateBoxDisplay() {
         for (int i = 0; i < gameState.length; i++) {
             for (int j = 0; j < gameState[0].length; j++) {
@@ -173,7 +119,6 @@ public class SokoBot {
             }
         }
     }
-
 
     public void move (int dx, int dy){
         checkNextState(dx, dy);
@@ -188,10 +133,11 @@ public class SokoBot {
                     return;
                 }
 
-                if (isWallDeadlock(newBoxRow, newBoxCol)) {
-                    canMove = false;
-                    return;
-                }
+
+//                if (isWallDeadlock(newBoxRow, newBoxCol)) {
+//                    canMove = false;
+//                    return;
+//                }
 
                 relocateEntity(playerRow + dy, playerCol + dx, dx, dy, '$');
             }
@@ -200,30 +146,40 @@ public class SokoBot {
             updateBoxDisplay();
             playerRow += dy;
             playerCol += dx;
-            moves++;
+
         }
     }
 
-    public void updateGameState(String input){
-        int f = moves + computeHeuristic(gameState);
-        switch (input) {
-            case "u" -> move(0, -1);
-            case "d" -> move(0, 1);
-            case "r" -> move(1, 0);
-            case "l" -> move(-1, 0);
+    // just in case
+    public char[][] copyState(char[][] state) {
+        char[][] copy = new char[state.length][state[0].length];
+        for (int i = 0; i < state.length; i++) {
+            for (int j = 0; j < state[0].length; j++) {
+                copy[i][j] = state[i][j];
+            }
         }
-        displayGameState();
-
-        states.add(new Object[]{gameState, f});
-        System.out.println("player's move: " + input + " | g: " + moves + " | h: " + computeHeuristic(gameState) + " | " + "f:" + f);
-
-        System.out.println("---------------------------------------------");
-        System.out.println("\n");
-
-        if(isSolved()) {
-            System.out.println("Solved!");
-        }
+        return copy;
     }
+
+    public boolean isSolved() {
+        for(int i = 0; i < mapData.length; i++) {
+            for(int j = 0; j < mapData[0].length; j++) {
+                if(mapData[i][j] == '.') {
+                    if(gameState[i][j] != '/') {
+                        return false;
+                    }
+                }
+            }
+        }
+        return true;
+    }
+
+
+
+
+    ///  this section is the deadlock detection or to check if a move is valid
+
+
 
     public void checkNextState(int x, int y) {
         canMove = true; // reset these
@@ -261,9 +217,9 @@ public class SokoBot {
                     if (gameState[nextVertical][nextHorizontal] == '#') {
                         canMove = false;
 
-                    // checking if ur next move is facing a box
-                    // '$' for box not in the goal
-                    // '/' for box in the goal
+                        // checking if ur next move is facing a box
+                        // '$' for box not in the goal
+                        // '/' for box in the goal
                     } else if (gameState[nextVertical][nextHorizontal] == '$' || gameState[nextVertical][nextHorizontal] == '/') {
 
                         // if you are actually facing a box....
@@ -280,8 +236,8 @@ public class SokoBot {
                                 || gameState[doubleNextVertical][doubleNextHorizontal] == '#') {
                             canMove = false;
 
-                        // if not, the state must be like this: @$ #
-                        // this means a move is possible
+                            // if not, the state must be like this: @$ #
+                            // this means a move is possible
                         } else {
                             boxCanBeMoved = true;
                         }
@@ -396,16 +352,112 @@ public class SokoBot {
         return false;
     }
 
-    public boolean isSolved() {
-        for(int i = 0; i < mapData.length; i++) {
-            for(int j = 0; j < mapData[0].length; j++) {
-                if(mapData[i][j] == '.') {
-                    if(gameState[i][j] != '$') {
-                        return false;
-                    }
-                }
+
+
+    public void displayGameState(){
+        moves++;
+        for(int i = 0; i < itemsData.length; i++) {
+            for(int j = 0; j < itemsData[0].length; j++) {
+                System.out.print(gameState[i][j]);
             }
+            System.out.println();
         }
-        return true;
+        System.out.println(moves);
     }
+
+
+    //    public int computeHeuristic(char[][] state) {
+//        ArrayList<int[]> crates = findCrates(state);
+//        ArrayList<int[]> goals = findGoals();
+//
+//        int totalHeuristicValue = 0;
+//
+//        for (int i = 0; i < crates.size(); i++) {
+//            int[] crate = crates.get(i);
+//            int lowestHeuristicValue = Integer.MAX_VALUE;
+//
+//            for (int j = 0; j < goals.size(); j++) {
+//                int[] goal = goals.get(j);
+//                int heuristicValue = Math.abs(crate[0] - goal[0]) + Math.abs(crate[1] - goal[1]);
+//
+//                if (heuristicValue < lowestHeuristicValue) {
+//                    lowestHeuristicValue = heuristicValue;
+//                }
+//            }
+//
+//            totalHeuristicValue += lowestHeuristicValue;
+//        }
+//
+//        return totalHeuristicValue;
+//    }
+//    public void storeBoard(char[][] board) {
+//        this.board.add(copyState(board));
+//    }
+
+    // fuck u a* i perfer doing MOMECHE MASSCHE SEPPROC than this shit
+//    public Object[] createState(char[][] board, int g, int playerRow, int playerCol, String path) {
+//        int h = computeHeuristic(board);
+//        int f = g + h;
+//
+//        return new Object[]{
+//                board,
+//                g,
+//                h,
+//                f,
+//                playerRow,
+//                playerCol,
+//                path
+//        };
+//    }
+
+//    public void updateGameState(String input){
+//        int f = moves + computeHeuristic(gameState);
+//        switch (input) {
+//            case "u" -> move(0, -1);
+//            case "d" -> move(0, 1);
+//            case "r" -> move(1, 0);
+//            case "l" -> move(-1, 0);
+//        }
+//        moves++;
+//        displayGameState();
+//
+//        String paths = output;
+//        states.add(createState(
+//                copyState(gameState),
+//                moves,
+//                playerRow,
+//                playerCol,
+//                paths
+//        ));
+//        System.out.println("player's move: " + input + " | g: " + moves + " | h: " + computeHeuristic(gameState) + " | " + "f:" + f);
+//
+//        System.out.println("---------------------------------------------");
+//        System.out.println("\n");
+//
+//    }
+
+    //    public ArrayList<int[]> findCrates(char[][] state) {
+//        ArrayList<int[]> result = new ArrayList<>();
+//        for (int i = 0; i < state.length; i++) {
+//            for (int j = 0; j < state[0].length; j++) {
+//                if (state[i][j] == '$' || state[i][j] == '/') {
+//                    result.add(new int[]{j, i});
+//                }
+//            }
+//        }
+//        return result;
+//    }
+//
+//    public ArrayList<int[]> findGoals() {
+//        ArrayList<int[]> result = new ArrayList<>();
+//        for (int i = 0; i < mapData.length; i++) {
+//            for (int j = 0; j < mapData[0].length; j++) {
+//                if (mapData[i][j] == '.') {
+//                    result.add(new int[]{j, i});
+//                }
+//            }
+//        }
+//        return result;
+//    }
+
 }
