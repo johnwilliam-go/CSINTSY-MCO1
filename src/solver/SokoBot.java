@@ -24,6 +24,56 @@ public class SokoBot {
         this.itemsData = itemsData;
 
 
+        initializeGameState();
+
+        board.add(copyState(gameState));
+        playerLocation.add(new int[]{playerRow, playerCol});
+        paths.add("");
+
+        visitedBoards.add(copyState(gameState));
+        //           up   down  left  right
+        int[] dx = {  0  ,  0,   -1,    1};
+        int[] dy = { -1  ,  1,    0,    0};
+        char[] direction = {'u', 'd', 'l', 'r'};
+
+        while(!board.isEmpty()) {
+
+            char[][] currentBoard = board.remove(0);
+            int[] pos = playerLocation.remove(0);
+            String path = paths.remove(0);
+
+            gameState = currentBoard;
+            if(isSolved()) {
+                return path;
+            }
+
+            for(int i = 0; i < dx.length; i++){
+                char[][] currentGameState = copyState(currentBoard);
+                gameState = currentGameState;
+                playerRow = pos[0];
+                playerCol = pos[1];
+                checkNextState(dx[i], dy[i]);
+                if(canMove){
+                    move(dx[i], dy[i]);
+                    boolean found = false;
+                    for(int j = 0; j < visitedBoards.size(); j++){
+                        if(isBoardsAreEqual(visitedBoards.get(j), currentGameState)){
+                            found = true;
+                            break;
+                        }
+                    }
+                    if(!found){
+                        if(!deadlockDetection()){
+                            board.add(currentGameState);
+                            playerLocation.add(new int[]{playerRow, playerCol});
+                            paths.add(path + direction[i]);
+                            visitedBoards.add(copyState(currentGameState));
+                        }
+                    }
+                }
+            }
+        }
+
 
         return "";
     }
