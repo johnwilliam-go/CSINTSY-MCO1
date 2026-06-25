@@ -1,5 +1,6 @@
 package solver;
 import java.util.ArrayList;
+import java.util.HashSet;
 
 public class SokoBot {
     private char[][] mapData;
@@ -9,84 +10,73 @@ public class SokoBot {
     private boolean boxCanBeMoved = false;
     private int playerRow, playerCol;
     private int moves = 0;
+    private int height;
+    private int width;
 
 
-    private ArrayList<char[][]> board = new ArrayList<>();
-    private ArrayList<int[]> playerLocation = new ArrayList<>();
+    private final ArrayList<String> queueBoard = new ArrayList<>();
 
-    private ArrayList<String> paths = new ArrayList<>();
+    private final ArrayList<String> paths = new ArrayList<>();
 
-    private ArrayList<char[][]> visitedBoards = new ArrayList<>();
+    private final HashSet<String> visitedBoards = new HashSet<>();
 
     public String solveSokobanPuzzle(int width, int height, char[][] mapData, char[][] itemsData) {
+        this.height = height;
+        this.width = width;
         gameState = new char[height][width];
         this.mapData = mapData;
         this.itemsData = itemsData;
 
 
         initializeGameState();
-
-        board.add(copyState(gameState));
-        playerLocation.add(new int[]{playerRow, playerCol});
+        String first = boardToString(gameState);
+        queueBoard.add(first);
         paths.add("");
+        visitedBoards.add(first);
 
-        visitedBoards.add(copyState(gameState));
+
         //           up   down  left  right
         int[] dx = {  0  ,  0,   -1,    1};
         int[] dy = { -1  ,  1,    0,    0};
         char[] direction = {'u', 'd', 'l', 'r'};
 
-        while(!board.isEmpty()) {
+        while(!queueBoard.isEmpty()) {
+            String currentBoard = String.valueOf(queueBoard.removeFirst());
+            String path = paths.removeFirst();
+            gameState = stringToBoard(currentBoard);
+            for (int r = 0; r < height; r++) {
+                for (int c = 0; c < width; c++) {
+                    if (gameState[r][c] == '@') {
+                        playerRow = r;
+                        playerCol = c;
+                    }
+                }
+            }
 
-            char[][] currentBoard = board.remove(0);
-            int[] pos = playerLocation.remove(0);
-            String path = paths.remove(0);
-
-            gameState = currentBoard;
             if(isSolved()) {
                 return path;
             }
-
             for(int i = 0; i < dx.length; i++){
-                char[][] currentGameState = copyState(currentBoard);
-                gameState = currentGameState;
-                playerRow = pos[0];
-                playerCol = pos[1];
+                gameState = stringToBoard(currentBoard);
+
                 checkNextState(dx[i], dy[i]);
-                if(canMove){
+                if (canMove) {
                     move(dx[i], dy[i]);
-                    boolean found = false;
-                    for(int j = 0; j < visitedBoards.size(); j++){
-                        if(isBoardsAreEqual(visitedBoards.get(j), currentGameState)){
-                            found = true;
-                            break;
-                        }
-                    }
-                    if(!found){
+
+                    String newBoard = boardToString(gameState);
+
+                    if (!visitedBoards.contains(newBoard)) {
                         if(!deadlockDetection()){
-                            board.add(currentGameState);
-                            playerLocation.add(new int[]{playerRow, playerCol});
+                            queueBoard.add(newBoard);
                             paths.add(path + direction[i]);
-                            visitedBoards.add(copyState(currentGameState));
+                            visitedBoards.add(newBoard);
                         }
                     }
                 }
             }
         }
-
 
         return "";
-    }
-    public boolean isBoardsAreEqual(char[][] a, char[][] b) {
-
-        for (int i = 0; i < a.length; i++) {
-            for (int j = 0; j < a[0].length; j++) {
-                if (a[i][j] != b[i][j]) { //check if the next board is the same as the previously stored board
-                    return false;
-                }
-            }
-        }
-        return true;
     }
 
     public void move (int dx, int dy){
@@ -99,15 +89,16 @@ public class SokoBot {
         playerCol += dx;
     }
 
-    public char[][] copyState(char[][] state) {
-        char[][] copy = new char[state.length][state[0].length];
+    public String boardToString(char[][] state) {
+        StringBuilder boardtostring = new StringBuilder();
         for (int i = 0; i < state.length; i++) {
             for (int j = 0; j < state[0].length; j++) {
-                copy[i][j] = state[i][j];
+                boardtostring.append(state[i][j]);
             }
         }
-        return copy;
+        return boardtostring.toString();
     }
+
 
     public boolean isSolved() {
         for(int i = 0; i < mapData.length; i++) {
@@ -120,6 +111,21 @@ public class SokoBot {
             }
         }
         return true;
+    }
+
+    public char[][] stringToBoard(String s) {
+        char[][] board = new char[height][width];
+        int idx = 0;
+        for (int i = 0; i < height; i++) {
+            for (int j = 0; j < width; j++) {
+                board[i][j] = s.charAt(idx++);
+                if(board[i][j] == '@') {
+                    playerRow = i;
+                    playerCol = j;
+                }
+            }
+        }
+        return board;
     }
 
     // you might need checkNextState() as well
@@ -141,7 +147,7 @@ public class SokoBot {
     }
 
     public void relocateEntity(int objRow, int objCol, int dx, int dy, char object) {
-        gameState[objRow][objCol] = mapData[objRow][objCol]; // restore underlying tile
+        gameState[objRow][objCol] = mapData[objRow][objCol];
         gameState[objRow + dy][objCol + dx] = object;
     }
 
@@ -328,17 +334,6 @@ public class SokoBot {
         }
 
         return false;
-    }
-
-    public void displayGameState(){
-        moves++;
-        for(int i = 0; i < itemsData.length; i++) {
-            for(int j = 0; j < itemsData[0].length; j++) {
-                System.out.print(gameState[i][j]);
-            }
-            System.out.println();
-        }
-        System.out.println(moves);
     }
 
 }
