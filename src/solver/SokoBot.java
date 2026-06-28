@@ -1,6 +1,5 @@
 package solver;
-import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.*;
 
 public class SokoBot {
     private char[][] mapData;
@@ -20,58 +19,118 @@ public class SokoBot {
 
     private final HashSet<String> visitedBoards = new HashSet<>();
 
+    private static class Node {
+        String board;
+        String path;
+        int cost;
+
+        Node(String board, String path, int cost) {
+            this.board = board;
+            this.path = path;
+            this.cost = cost;
+        }
+    }
+
+    private static class Step {
+
+        int row;
+        int col;
+        String path;
+
+        Step(int row, int col, String path) {
+            this.row = row;
+            this.col = col;
+            this.path = path;
+        }
+    }
+
     public String solveSokobanPuzzle(int width, int height, char[][] mapData, char[][] itemsData) {
         this.height = height;
         this.width = width;
-        gameState = new char[height][width];
         this.mapData = mapData;
         this.itemsData = itemsData;
-
+        this.gameState = new char[height][width];
 
         initializeGameState();
+        updateBoxDisplay();
+
+        visitedBoards.clear();
+
+        PriorityQueue<Node> queueBoard = new PriorityQueue<>(Comparator.comparingInt(n -> n.cost));
+
         String first = boardToString(gameState);
-        queueBoard.add(first);
-        paths.add("");
+        queueBoard.add(new Node(first, "", heuristic(gameState)));
         visitedBoards.add(first);
 
+        long startTime = System.currentTimeMillis();
 
         //           up   down  left  right
-        int[] dx = {  0  ,  0,   -1,    1};
-        int[] dy = { -1  ,  1,    0,    0};
+        int[] dx = {  0,   0,   -1,    1};
+        int[] dy = { -1,   1,    0,    0};
         char[] direction = {'u', 'd', 'l', 'r'};
 
-        while(!queueBoard.isEmpty()) {
-            String currentBoard = String.valueOf(queueBoard.removeFirst());
-            String path = paths.removeFirst();
-            gameState = stringToBoard(currentBoard);
-            for (int r = 0; r < height; r++) {
-                for (int c = 0; c < width; c++) {
-                    if (gameState[r][c] == '@') {
-                        playerRow = r;
-                        playerCol = c;
+        while (!queueBoard.isEmpty()) {
+            if (System.currentTimeMillis() - startTime > 14000) {
+                return "";
+            }
+
+            Node currentBoard = queueBoard.poll();
+            gameState = stringToBoard(currentBoard.board);
+
+            if (isSolved()) {
+                return currentBoard.path;
+            }
+
+            HashMap<Integer, String> reachableArea =
+                    getReachableTiles(gameState, playerRow, playerCol);
+
+            for (int nextPosition : reachableArea.keySet()) {
+                int walkRow = nextPosition / width;
+                int walkCol = nextPosition % width;
+                String walkPath = reachableArea.get(nextPosition);
+
+                for (int i = 0; i < dx.length; i++) {
+                    int boxRow = walkRow + dy[i];
+                    int boxCol = walkCol + dx[i];
+
+                    int nextBoxRow = boxRow + dy[i];
+                    int nextBoxCol = boxCol + dx[i];
+
+                    if (nextBoxRow < 0 || nextBoxRow >= height ||
+                            nextBoxCol < 0 || nextBoxCol >= width) {
+                        continue;
                     }
-                }
-            }
 
-            if(isSolved()) {
-                return path;
-            }
-            for(int i = 0; i < dx.length; i++){
-                gameState = stringToBoard(currentBoard);
+                    if (!isBox(gameState[boxRow][boxCol])) {
+                        continue;
+                    }
 
-                checkNextState(dx[i], dy[i]);
-                if (canMove) {
-                    move(dx[i], dy[i]);
+                    if (isBlockedForBox(gameState[nextBoxRow][nextBoxCol])) {
+                        continue;
+                    }
+
+                    char[][] newState = copyBoard(gameState);
+
+                    newState[playerRow][playerCol] = mapData[playerRow][playerCol];
+                    newState[boxRow][boxCol] = '@';
+                    newState[nextBoxRow][nextBoxCol] = '$';
+
+                    gameState = newState;
+                    updateBoxDisplay();
 
                     String newBoard = boardToString(gameState);
 
                     if (!visitedBoards.contains(newBoard)) {
-                        if(!deadlockDetection()){
-                            queueBoard.add(newBoard);
-                            paths.add(path + direction[i]);
+                        if (!deadlockDetection()) {
+                            String newPath = currentBoard.path + walkPath + direction[i];
+                            int newCost = newPath.length() + heuristic(gameState) * 10;
+
+                            queueBoard.add(new Node(newBoard, newPath, newCost));
                             visitedBoards.add(newBoard);
                         }
                     }
+
+                    gameState = stringToBoard(currentBoard.board);
                 }
             }
         }
@@ -97,6 +156,92 @@ public class SokoBot {
             }
         }
         return boardtostring.toString();
+    }
+    public char[][] copyBoard(char[][] board) {
+        char[][] newBoard = new char[height][width];
+
+        for (int row = 0; row < height; row++) {
+            for (int col = 0; col < width; col++) {
+                newBoard[row][col] = board[row][col];
+            }
+        }
+
+        return newBoard;
+    }
+    public boolean isBox(char tile) {
+        return tile == '$' || tile == '/';
+    }
+
+    public boolean isBlockedForBox(char tile) {
+        return tile == '#' || tile == '$' || tile == '/';
+    }
+
+    public HashMap<Integer, String> getReachableTiles(char[][] board, int startRow, int startCol) {
+        HashMap<Integer, String> reachable = new HashMap<>();
+        ArrayDeque<Step> queue = new ArrayDeque<>();
+
+        queue.add(new Step(startRow, startCol, ""));
+        reachable.put(startRow * width + startCol, "");
+
+        int[] dRow = {-1, 1, 0, 0};
+        int[] dCol = {0, 0, -1, 1};
+        char[] moveChar = {'u', 'd', 'l', 'r'};
+
+        while (!queue.isEmpty()) {
+            Step current = queue.poll();
+
+            for (int i = 0; i < 4; i++) {
+                int newRow = current.row + dRow[i];
+                int newCol = current.col + dCol[i];
+
+                if (newRow < 0 || newRow >= height || newCol < 0 || newCol >= width) {
+                    continue;
+                }
+
+                char tile = board[newRow][newCol];
+
+                if (tile == '#' || tile == '$' || tile == '/') {
+                    continue;
+                }
+
+                int key = newRow * width + newCol;
+
+                if (!reachable.containsKey(key)) {
+                    String newPath = current.path + moveChar[i];
+                    reachable.put(key, newPath);
+                    queue.add(new Step(newRow, newCol, newPath));
+                }
+            }
+        }
+
+        return reachable;
+    }
+
+    public int heuristic(char[][] state) {
+        int total = 0;
+
+        for (int r = 0; r < height; r++) {
+            for (int c = 0; c < width; c++) {
+                if (state[r][c] == '$' || state[r][c] == '/') {
+                    int best = 999999;
+
+                    for (int tr = 0; tr < height; tr++) {
+                        for (int tc = 0; tc < width; tc++) {
+                            if (mapData[tr][tc] == '.') {
+                                int distance = Math.abs(r - tr) + Math.abs(c - tc);
+                                if (distance < best) {
+                                    best = distance;
+                                }
+                            }
+                        }
+                    }
+
+                    total += best;
+                }
+            }
+        }
+
+        return total;
     }
 
 
@@ -243,6 +388,7 @@ public class SokoBot {
         return gameState[row][col] == '#';
     }
 
+
     public boolean isCornerDeadlock(int boxRow, int boxCol) {
         if (mapData[boxRow][boxCol] == '.') {
             return false;
@@ -260,61 +406,6 @@ public class SokoBot {
                 (bottomBlocked && rightBlocked);
     }
 
-    public boolean rowHasGoalTile(int row) {
-
-        // Check if this row contains at least one goal tile
-        for (int col = 0; col < mapData[0].length; col++) {
-            if (mapData[row][col] == '.') {
-                return true;
-            }
-        }
-
-        return false;
-    }
-    public boolean columnHasGoalTile(int col) {
-
-        // Check if this column contains at least one goal tile
-        for (int row = 0; row < mapData.length; row++) {
-            if (mapData[row][col] == '.') {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-
-    public boolean isWallDeadlock(int boxRow, int boxCol) {
-
-        if (mapData[boxRow][boxCol] == '.') {
-            return false;
-        }
-
-        boolean topBlocked = isWallTile(boxRow - 1, boxCol);
-        boolean bottomBlocked = isWallTile(boxRow + 1, boxCol);
-
-        boolean leftBlocked = isWallTile(boxRow, boxCol - 1);
-        boolean rightBlocked = isWallTile(boxRow, boxCol + 1);
-
-        // Check if the box is touching a wall
-        boolean boxIsAgainstHorizontalWall = topBlocked || bottomBlocked;
-        boolean boxIsAgainstVerticalWall = leftBlocked || rightBlocked;
-
-        boolean rowHasGoal = rowHasGoalTile(boxRow);
-        boolean columnHasGoal = columnHasGoalTile(boxCol);
-
-        // Box is stuck along a horizontal wall with no goal in the row
-        if (boxIsAgainstHorizontalWall && !rowHasGoal) {
-            return true;
-        }
-
-        // Box is stuck along a vertical wall with no goal in the column
-        if (boxIsAgainstVerticalWall && !columnHasGoal) {
-            return true;
-        }
-
-        return false;
-    }
 
     public boolean deadlockDetection(){
         // implement your code here (if you want to create a method instead)
@@ -328,7 +419,6 @@ public class SokoBot {
                     if (isCornerDeadlock(row, col)) {
                         return true;
                     }
-
                 }
             }
         }

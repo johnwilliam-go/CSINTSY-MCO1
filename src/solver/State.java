@@ -22,7 +22,7 @@ public class State {
         if (this == o) {
             return true;
         }
-        if (!(instanceof SokobanState)){
+        if (!(o instanceof State)){
             return false;
         }
         State thatOne = (State) o;
