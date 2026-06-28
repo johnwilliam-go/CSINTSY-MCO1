@@ -120,7 +120,7 @@ public class SokoBot {
                     if (!visitedBoards.contains(newBoard)) {
                         if (!deadlockDetection()) {
                             String newPath = currentBoard.path + walkPath + direction[i];
-                            int newCost = newPath.length() + heuristic(gameState) * 50;
+                            int newCost = newPath.length() + heuristic(gameState) * 40;
 
                             queueBoard.add(new Node(newBoard, newPath, newCost));
                             visitedBoards.add(newBoard);
@@ -344,6 +344,34 @@ public class SokoBot {
                 (bottomBlocked && rightBlocked);
     }
 
+    public boolean isBoxOrWall(int row, int col) {
+        if (row < 0 || row >= height || col < 0 || col >= width) {
+            return true;
+        }
+
+        return gameState[row][col] == '#' ||
+                gameState[row][col] == '$' ||
+                gameState[row][col] == '/';
+    }
+
+    public boolean isSmallSquareDeadlock(int row, int col) {
+        for (int startRow = row - 1; startRow <= row; startRow++) {
+            for (int startCol = col - 1; startCol <= col; startCol++) {
+
+                boolean blockedSquare =
+                        isBoxOrWall(startRow, startCol) &&
+                                isBoxOrWall(startRow + 1, startCol) &&
+                                isBoxOrWall(startRow, startCol + 1) &&
+                                isBoxOrWall(startRow + 1, startCol + 1);
+
+                if (blockedSquare) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
 
     public boolean deadlockDetection(){
         // implement your code here (if you want to create a method instead)
@@ -355,6 +383,9 @@ public class SokoBot {
                 if (gameState[row][col] == '$') {
 
                     if (isCornerDeadlock(row, col)) {
+                        return true;
+                    }
+                    if (isSmallSquareDeadlock(row, col)) {
                         return true;
                     }
                 }
