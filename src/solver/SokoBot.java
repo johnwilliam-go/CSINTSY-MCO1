@@ -5,10 +5,7 @@ public class SokoBot {
     private char[][] mapData;
     private char[][] itemsData;
     private char[][] gameState;
-    private boolean canMove = true;
-    private boolean boxCanBeMoved = false;
     private int playerRow, playerCol;
-    private int moves = 0;
     private int height;
     private int width;
 
@@ -70,7 +67,7 @@ public class SokoBot {
         char[] direction = {'u', 'd', 'l', 'r'};
 
         while (!queueBoard.isEmpty()) {
-            if (System.currentTimeMillis() - startTime > 14000) {
+            if (System.currentTimeMillis() - startTime > 14999) {
                 return "";
             }
 
@@ -123,7 +120,7 @@ public class SokoBot {
                     if (!visitedBoards.contains(newBoard)) {
                         if (!deadlockDetection()) {
                             String newPath = currentBoard.path + walkPath + direction[i];
-                            int newCost = newPath.length() + heuristic(gameState) * 10;
+                            int newCost = newPath.length() + heuristic(gameState) * 50;
 
                             queueBoard.add(new Node(newBoard, newPath, newCost));
                             visitedBoards.add(newBoard);
@@ -138,15 +135,6 @@ public class SokoBot {
         return "";
     }
 
-    public void move (int dx, int dy){
-        if(boxCanBeMoved){
-            relocateEntity(playerRow + dy, playerCol + dx, dx, dy, '$'); // move the box
-        }
-        relocateEntity(playerRow, playerCol, dx, dy, '@'); // move the player
-        updateBoxDisplay();
-        playerRow += dy;
-        playerCol += dx;
-    }
 
     public String boardToString(char[][] state) {
         StringBuilder boardtostring = new StringBuilder();
@@ -218,30 +206,39 @@ public class SokoBot {
     }
 
     public int heuristic(char[][] state) {
-        int total = 0;
+        int totalDistance = 0;
 
-        for (int r = 0; r < height; r++) {
-            for (int c = 0; c < width; c++) {
-                if (state[r][c] == '$' || state[r][c] == '/') {
-                    int best = 999999;
+        for (int boxRow = 0; boxRow < height; boxRow++) {
+            for (int boxCol = 0; boxCol < width; boxCol++) {
 
-                    for (int tr = 0; tr < height; tr++) {
-                        for (int tc = 0; tc < width; tc++) {
-                            if (mapData[tr][tc] == '.') {
-                                int distance = Math.abs(r - tr) + Math.abs(c - tc);
-                                if (distance < best) {
-                                    best = distance;
+                if (state[boxRow][boxCol] == '$' || state[boxRow][boxCol] == '/') {
+                    int shortestDistance = Integer.MAX_VALUE;
+
+                    for (int targetRow = 0; targetRow < height; targetRow++) {
+                        for (int targetCol = 0; targetCol < width; targetCol++) {
+
+                            if (mapData[targetRow][targetCol] == '.') {
+                                int rowDistance = Math.abs(boxRow - targetRow);
+                                int colDistance = Math.abs(boxCol - targetCol);
+                                int distance = rowDistance + colDistance;
+
+                                if (distance < shortestDistance) {
+                                    shortestDistance = distance;
                                 }
                             }
                         }
                     }
 
-                    total += best;
+                    totalDistance += shortestDistance;
+
+                    if (state[boxRow][boxCol] == '$' && isCornerDeadlock(boxRow, boxCol)) {
+                        totalDistance += 10000;
+                    }
                 }
             }
         }
 
-        return total;
+        return totalDistance;
     }
 
 
@@ -318,66 +315,7 @@ public class SokoBot {
     }
 
     ///  this section is the deadlock detection or to check if a move is valid
-    public void checkNextState(int x, int y) {
-        canMove = true;
-        boxCanBeMoved = false;
-        for (int i = 0; i < gameState.length; i++) {
-            for (int j = 0; j < gameState[0].length; j++) {
-                if (gameState[i][j] == '@') {
 
-                    int nextVertical = i + y;    // if y = negative, it checks the left     if y = positive, it checks the right
-                    int nextHorizontal = j + x;  // if x = negative, it checks the top      if x = positive,  it checks the bottom
-                    int doubleNextVertical = i + 2 * y;   // checks 2 units to the left or right
-                    int doubleNextHorizontal = j + 2 * x; // checks 2 units up and down
-
-                    //this prevents you from exiting the map cuz it will cause an array out of bounds index error type shit
-                    if (nextVertical < 0 || nextVertical >= gameState.length || nextHorizontal < 0 || nextHorizontal >= gameState[0].length) {
-                        canMove = false;
-                        return;
-                    }
-
-                    // checking if ur next move is a wall
-                    if (gameState[nextVertical][nextHorizontal] == '#') {
-                        canMove = false;
-
-                        // checking if ur next move is facing a box
-                        // '$' for box not in the goal
-                        // '/' for box in the goal
-                    } else if (gameState[nextVertical][nextHorizontal] == '$' || gameState[nextVertical][nextHorizontal] == '/') {
-
-                        // if you are actually facing a box....
-
-                        // checks if the player and the box are next to a wall
-                        // @$#
-                        if (doubleNextVertical < 0 || doubleNextVertical >= gameState.length || doubleNextHorizontal < 0 || doubleNextHorizontal >= gameState[0].length) {
-                            canMove = false;
-                            return;
-                        }
-                        // checks player if the box is also next to a box
-                        // @$$
-                        if (gameState[doubleNextVertical][doubleNextHorizontal] == '$' || gameState[doubleNextVertical][doubleNextHorizontal] == '/'
-                                || gameState[doubleNextVertical][doubleNextHorizontal] == '#') {
-                            canMove = false;
-
-                            // if not, the state must be like this: @$ #
-                            // this means a move is possible
-                        } else {
-                            boxCanBeMoved = true;
-                        }
-                    }
-                }
-            }
-        }
-        if (boxCanBeMoved) {
-            int newBoxRow = playerRow + 2 * y;
-            int newBoxCol = playerCol + 2 * x;
-
-            if (isCornerDeadlock(newBoxRow, newBoxCol)) {
-                canMove = false;
-                boxCanBeMoved = false;
-            }
-        }
-    }
     public boolean isWallTile(int row, int col) {
 
         if (row < 0 || row >= gameState.length ||
